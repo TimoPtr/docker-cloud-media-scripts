@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 # Rclone
 curl https://rclone.org/install.sh | bash
 
