@@ -90,7 +90,7 @@ RUN chmod a+x /install.sh && \
 # VOLUMES
 ####################
 # Define mountable directories.
-VOLUME /config /cloud-encrypt /cloud-decrypt /local-decrypt /local-media /log
+VOLUME /data /cloud-encrypt /cloud-decrypt /local-decrypt /local-media /log
 
 RUN chmod -R 777 /data /log && \
     mkdir /config
