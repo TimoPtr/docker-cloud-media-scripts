@@ -1,4 +1,7 @@
 #!/bin/bash
+
+set -ex 
+
 ###############################################################################
 # mount.remote - A script to mount GDrive remote for use with Plex
 ###############################################################################
@@ -21,15 +24,10 @@ mount_gdrive () {
 		mkdir -p "${cloud_dir}"
 	fi
 
-	# Make sure Plexdrive temp folder exists.
-	if [ ! -d "${plexdrive_temp_dir}" ]; then
-		mkdir -p "${plexdrive_temp_dir}"
-	fi
-
 	# Mount GD if not already mounted.
 	if [ $(ps -ef | grep "plexdrive" | grep -v "grep" | wc -l) == "0" ]; then
 		echo "[ $(date $(printenv DATE_FORMAT)) ] Mounting Google Drive mountpoint: ${cloud_dir}"
-		plexdrive $plexdrive_options "${cloud_dir}" &
+		plexdrive mount $plexdrive_options "${cloud_dir}" &
 	else
 		echo "[ $(date $(printenv DATE_FORMAT)) ] Google Drive mountpoint: ${cloud_dir} already mounted."
 	fi
