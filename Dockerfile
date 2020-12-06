@@ -1,10 +1,9 @@
 ####################
 # BASE IMAGE
 ####################
-FROM ubuntu:16.04
+FROM ubuntu:20.04
 
-MAINTAINER madslundt@live.dk <madslundt@live.dk>
-
+ARG TARGETARCH
 
 ####################
 # INSTALLATIONS
@@ -22,24 +21,10 @@ RUN apt-get update && \
         ca-certificates && \
     update-ca-certificates && \
     apt-get install -y openssl && \
-    sed -i 's/#user_allow_other/user_allow_other/' /etc/fuse.conf
-
-# MongoDB 3.4
-RUN \
-   apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6 && \
-   echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-3.4.list && \
-   apt-get update && \
-   apt-get install -y mongodb-org
-
-# S6 overlay
-ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
-ENV S6_KEEP_ENV=1
-
-RUN \
-    OVERLAY_VERSION=$(curl -sX GET "https://api.github.com/repos/just-containers/s6-overlay/releases/latest" | awk '/tag_name/{print $4;exit}' FS='[""]') && \
-    curl -o /tmp/s6-overlay.tar.gz -L "https://github.com/just-containers/s6-overlay/releases/download/${OVERLAY_VERSION}/s6-overlay-amd64.tar.gz" && \
-    tar xfz  /tmp/s6-overlay.tar.gz -C /
-
+    sed -i 's/#user_allow_other/user_allow_other/' /etc/fuse.conf && \
+    apt-get clean autoclean && \
+    apt-get autoremove -y && \
+    rm -rf /tmp/* /var/lib/{apt,dpkg,cache,log}/
 
 ####################
 # ENVIRONMENT VARIABLES
@@ -56,10 +41,9 @@ ENV RCLONE_CLOUD_ENDPOINT "gd-crypt:"
 ENV RCLONE_LOCAL_ENDPOINT "local-crypt:"
 
 # Plexdrive
-ENV CHUNK_SIZE "10M"
-ENV CLEAR_CHUNK_MAX_SIZE ""
-ENV CLEAR_CHUNK_AGE "24h"
-ENV MONGO_DATABASE "plexdrive"
+ENV PLEXDRIVE_VERSION "5.1.0"
+ENV CHUNK_SIZE "1M"
+ENV MAX_CHUNK "100"
 
 # Time format
 ENV DATE_FORMAT "+%F@%T"
@@ -79,6 +63,18 @@ ENV CLOUDUPLOADTIME "0 1 * * *"
 ENV RMDELETETIME "0 6 * * *"
 
 ####################
+# S6 overlay
+####################
+ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
+ENV S6_KEEP_ENV=1
+
+RUN \
+    OVERLAY_VERSION=$(curl -sX GET "https://api.github.com/repos/just-containers/s6-overlay/releases/latest" | awk '/tag_name/{print $4;exit}' FS='[""]') && \
+    OVERLAY_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "aarch64"; elif [ "$TARGETARCH" = "arm" ]; then echo "armhf"; else echo "$TARGETARCH"; fi) && \
+    curl -o /tmp/s6-overlay.tar.gz -L "https://github.com/just-containers/s6-overlay/releases/download/${OVERLAY_VERSION}/s6-overlay-${OVERLAY_ARCH}.tar.gz" && \
+    tar xzf /tmp/s6-overlay.tar.gz -C / --exclude='./bin' && tar xzf /tmp/s6-overlay.tar.gz -C /usr ./bin
+
+####################
 # SCRIPTS
 ####################
 COPY setup/* /usr/bin/
@@ -91,18 +87,13 @@ RUN chmod a+x /install.sh && \
     chmod a+x /usr/bin/* && \
     groupmod -g 1000 users && \
 	useradd -u 911 -U -d / -s /bin/false abc && \
-	usermod -G users abc && \
-    apt-get clean autoclean && \
-    apt-get autoremove -y && \
-    rm -rf /tmp/* /var/lib/{apt,dpkg,cache,log}/
+	usermod -G users abc
 
 ####################
 # VOLUMES
 ####################
 # Define mountable directories.
-#VOLUME /data/db /config /cloud-encrypt /cloud-decrypt /local-decrypt /local-media /chunks /log
-VOLUME /data/db /cloud-encrypt /cloud-decrypt /local-decrypt /local-media /chunks /log
-
+VOLUME /config /cloud-encrypt /cloud-decrypt /local-decrypt /local-media /log
 
 RUN chmod -R 777 /data /log && \
     mkdir /config
@@ -111,7 +102,6 @@ RUN chmod -R 777 /data /log && \
 # WORKING DIRECTORY
 ####################
 WORKDIR /data
-
 
 ####################
 # ENTRYPOINT
