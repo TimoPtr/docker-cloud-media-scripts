@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Rclone
-curl https://rclone.org/install.sh | sudo bash
+curl https://rclone.org/install.sh | bash
 
 # Plexdrive
 OS_type="`uname -m`"
